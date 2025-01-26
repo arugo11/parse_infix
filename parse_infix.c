@@ -8,9 +8,10 @@
 // Interpreter for mathematical expressions in Infix Notation
 // Recursive descent parser
 //
-// expr := term | term {+ term} | term {- term}
+// Modified grammar to handle unary minus:
+// expr := term | term {+ term} | term {- term} | -expr
 // term := fact | fact {* fact} | fact {/ fact}
-// fact := (expr) | number
+// fact := (expr) | number | -fact
 double expr();
 double term();
 double fact();
@@ -30,55 +31,87 @@ double parse(char* target, int tm)
 
   return expr();
 }
-// ---- Modules for parsing and evaluating the target ----
-// BNF
-// expr := term | term {+ term} | term {- term}
+
+// Modified to handle unary minus
 double expr(void)
 {
   stack_push("expr", bufferInd());
 
   double value;
-
-  value = term();
-  while (1) {
+  Token t = bufferCurrentToken();
+  
+  if (t.tid == minus) {
     bufferNext();
-    Token t = bufferCurrentToken();
-    if (t.tid == plus) {
+    value = -expr();  // Handle unary minus recursively
+  } else {
+    value = term();
+    while (1) {
+      bufferNext();
+      t = bufferCurrentToken();
+      if (t.tid == plus || t.tid == minus) {
+        Token next;
         bufferNext();
-        value += term();
-    }
-    else if (t.tid == minus) {
-        bufferNext();
-        value -= term();
-    }
-    else {
-      bufferBack();
-      break;
+        next = bufferCurrentToken();
+        // Check for operator repetition
+        if (next.tid == plus || next.tid == minus) {
+          error = 1;
+          puts("Multiple operators not allowed");
+          break;
+        }
+        bufferBack();
+        
+        if (t.tid == plus) {
+          bufferNext();
+          value += term();
+        } else if (t.tid == minus) {
+          bufferNext();
+          value -= term();
+        }
+      } else {
+        bufferBack();
+        break;
+      }
     }
   }
+  
   stack_pop(value);
   return value;
 }
 
-// BNF
-// term := fact | fact {* fact} | fact {/ fact}
 double term(void)
 {
   stack_push("term", bufferInd());
-  double value = fact( );
+  double value = fact();
 
   while (1) {
     bufferNext();
     Token t = bufferCurrentToken();
-    if (t.tid == multiply) {
+    if (t.tid == multiply || t.tid == substitute) {
+      Token next;
       bufferNext();
-      value *= fact();
-    }
-    else if (t.tid == substitute) {
-      bufferNext();
-      value /= fact();
-    }
-    else {
+      next = bufferCurrentToken();
+    
+      if (next.tid == multiply || next.tid == substitute) {
+        error = 1;
+        puts("Multiple operators not allowed");
+        break;
+      }
+      bufferBack();
+      
+      if (t.tid == multiply) {
+        bufferNext();
+        value *= fact();
+      } else if (t.tid == substitute) {
+        bufferNext();
+        double divisor = fact();
+        if (divisor == 0) {
+          error = 1;
+          puts("Division by zero");
+          break;
+        }
+        value /= divisor;
+      }
+    } else {
       bufferBack();
       break;
     }
@@ -87,27 +120,29 @@ double term(void)
   return value;
 }
 
-// BNF
-// fact := (expr) | number
 double fact(void)
 {
   stack_push("fact", bufferInd());
 
-  double value=0.0;
+  double value = 0.0;
   Token t = bufferCurrentToken();
 
-  if (t.tid == left_parenthis) {
-      bufferNext();
-      value = expr();
-      bufferNext();
-      Token t = bufferCurrentToken();
-      if (t.tid != right_parenthis) {
-        error = 1;
-        puts("')' is missing.");
-      }
+  if (t.tid == minus) {
+    bufferNext();
+    value = -fact();  // Handle unary minus
+  }
+  else if (t.tid == left_parenthis) {
+    bufferNext();
+    value = expr();
+    bufferNext();
+    t = bufferCurrentToken();
+    if (t.tid != right_parenthis) {
+      error = 1;
+      puts("')' is missing.");
+    }
   }
   else if (t.tid == number) {
-      value = t.value;
+    value = t.value;
   }
   else if (t.tid == other) {
     error = 1;
@@ -119,4 +154,4 @@ double fact(void)
   }
   stack_pop(value);
   return value;
- }
+}

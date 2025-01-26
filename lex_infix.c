@@ -13,6 +13,9 @@ int skipSpace(int index)
   return index;
 }
 
+// Forward declaration
+int bufferCurrentTokenLength(void);  // Added this declaration
+
 // -- public functions --
 
 void bufferInit(char* string)
@@ -21,8 +24,6 @@ void bufferInit(char* string)
   buf.ind = 0;
   buf.previous = 0;
 }
-
-int bufferCurrentTokenLength(void);
 
 void bufferNext(void)
 {
@@ -68,9 +69,27 @@ Token bufferCurrentToken(void)
   }
   else if (isdigit(buf.sexpr[index])) {
     t.tid = number;
+    int saw_dot = 0;
+    double decimal_place = 0.1;
+    
+    // 整数部分の処理
     while (isdigit(buf.sexpr[index])) {
       t.value = t.value * 10 + (double)(buf.sexpr[index] - '0');
       index++;
+    }
+    
+    // 小数点と小数部分の処理
+    if (buf.sexpr[index] == '.') {
+      index++;
+      if (!isdigit(buf.sexpr[index])) {
+        t.tid = other;  // 小数点の後に数字がない場合はエラー
+        return t;
+      }
+      while (isdigit(buf.sexpr[index])) {
+        t.value = t.value + (double)(buf.sexpr[index] - '0') * decimal_place;
+        decimal_place *= 0.1;
+        index++;
+      }
     }
   }
   else if (buf.sexpr[index] == 0) {
@@ -90,6 +109,12 @@ int bufferCurrentTokenLength(void)
   if (isdigit(buf.sexpr[index])) {
     while (isdigit(buf.sexpr[index])) {
       index++;
+    }
+    if (buf.sexpr[index] == '.') {
+      index++;
+      while (isdigit(buf.sexpr[index])) {
+        index++;
+      }
     }
   }
   else if (buf.sexpr[index] != 0) {

@@ -17,3 +17,4 @@ extern void bufferNext(void);
 extern void bufferBack(void);
 extern Token bufferCurrentToken(void);
 extern int bufferInd(void); // for debug
+extern int bufferCurrentTokenLength(void);  // Added this declaration
