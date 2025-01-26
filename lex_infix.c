@@ -13,8 +13,8 @@ int skipSpace(int index)
   return index;
 }
 
-// Forward declaration
-int bufferCurrentTokenLength(void);  // Added this declaration
+
+int bufferCurrentTokenLength(void);
 
 // -- public functions --
 
@@ -67,10 +67,17 @@ Token bufferCurrentToken(void)
   else if (buf.sexpr[index] == ')') {
     t.tid = right_parenthis;
   }
+  else if (buf.sexpr[index] == '.') {
+    t.tid = other;  // 先頭の小数点はエラー
+  }
   else if (isdigit(buf.sexpr[index])) {
     t.tid = number;
-    int saw_dot = 0;
-    double decimal_place = 0.1;
+    
+    // 先頭が0で次が数字の場合はエラー
+    if (buf.sexpr[index] == '0' && isdigit(buf.sexpr[index + 1])) {
+      t.tid = other;
+      return t;
+    }
     
     // 整数部分の処理
     while (isdigit(buf.sexpr[index])) {
@@ -81,10 +88,12 @@ Token bufferCurrentToken(void)
     // 小数点と小数部分の処理
     if (buf.sexpr[index] == '.') {
       index++;
+      // 小数点の後に数字がない場合はエラー
       if (!isdigit(buf.sexpr[index])) {
-        t.tid = other;  // 小数点の後に数字がない場合はエラー
+        t.tid = other;
         return t;
       }
+      double decimal_place = 0.1;
       while (isdigit(buf.sexpr[index])) {
         t.value = t.value + (double)(buf.sexpr[index] - '0') * decimal_place;
         decimal_place *= 0.1;

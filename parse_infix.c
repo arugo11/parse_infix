@@ -17,6 +17,11 @@ double term();
 double fact();
 int error = 0;
 
+// 演算子の種類を判定
+int isOperator(enum TokenID tid) {
+    return tid == plus || tid == minus || tid == multiply || tid == substitute;
+}
+
 int isParseNormal(void)
 {
   bufferNext();
@@ -32,7 +37,6 @@ double parse(char* target, int tm)
   return expr();
 }
 
-// Modified to handle unary minus
 double expr(void)
 {
   stack_push("expr", bufferInd());
@@ -41,8 +45,19 @@ double expr(void)
   Token t = bufferCurrentToken();
   
   if (t.tid == minus) {
-    bufferNext();
-    value = -expr();  // Handle unary minus recursively
+    // 連続するマイナスをチェック
+    int minus_count = 1;
+    Token next;
+    do {
+      bufferNext();
+      next = bufferCurrentToken();
+      if (next.tid == minus) {
+        minus_count++;
+      }
+    } while (next.tid == minus);
+    
+    // 連続するマイナスの数に応じて符号を決定
+    value = (minus_count % 2 == 0) ? term() : -term();
   } else {
     value = term();
     while (1) {
@@ -52,8 +67,9 @@ double expr(void)
         Token next;
         bufferNext();
         next = bufferCurrentToken();
-        // Check for operator repetition
-        if (next.tid == plus || next.tid == minus) {
+        
+        // 演算子の重複チェック
+        if (isOperator(next.tid)) {
           error = 1;
           puts("Multiple operators not allowed");
           break;
@@ -63,7 +79,7 @@ double expr(void)
         if (t.tid == plus) {
           bufferNext();
           value += term();
-        } else if (t.tid == minus) {
+        } else {
           bufferNext();
           value -= term();
         }
@@ -90,8 +106,9 @@ double term(void)
       Token next;
       bufferNext();
       next = bufferCurrentToken();
-    
-      if (next.tid == multiply || next.tid == substitute) {
+      
+      // 演算子の重複チェック
+      if (isOperator(next.tid)) {
         error = 1;
         puts("Multiple operators not allowed");
         break;
@@ -101,7 +118,7 @@ double term(void)
       if (t.tid == multiply) {
         bufferNext();
         value *= fact();
-      } else if (t.tid == substitute) {
+      } else {
         bufferNext();
         double divisor = fact();
         if (divisor == 0) {
@@ -129,7 +146,7 @@ double fact(void)
 
   if (t.tid == minus) {
     bufferNext();
-    value = -fact();  // Handle unary minus
+    value = -fact();
   }
   else if (t.tid == left_parenthis) {
     bufferNext();
@@ -152,6 +169,7 @@ double fact(void)
     error = 1;
     puts("\tunexpected eos!");
   }
+  
   stack_pop(value);
   return value;
 }
