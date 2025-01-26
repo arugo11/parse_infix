@@ -12,6 +12,7 @@
 
 
 ![alt text](images/image.png)
+<div style="page-break-before:always"></div>
 
 ## 2. 単独マイナス使用の実装
 
